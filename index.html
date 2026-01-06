@@ -1,59 +1,70 @@
 <!DOCTYPE html>
-<html lang="mr">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Bolbhidu-ai Marathi Speakable</title>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.9/dist/teachablemachine-image.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Marathi Speakable AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f0f0f0; }
+    video { border: 2px solid #333; border-radius: 8px; }
+    button { margin: 10px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  </style>
 </head>
 <body>
-<h2>Bolbhidu-ai Prediction (Marathi)</h2>
-<video id="webcam" width="320" height="240" autoplay playsinline></video><br>
-<button id="flipBtn">Flip Camera</button><br>
-<h3 id="label">Prediction: </h3>
+  <h1>Marathi Speakable AI</h1>
+  <video id="webcam" autoplay playsinline width="400" height="300"></video>
+  <br>
+  <button id="flipBtn">Flip Camera</button>
+  <h2 id="prediction">Prediction: -</h2>
 
-<script>
-const URL = "https://teachablemachine.withgoogle.com/models/qNs3g87f3/"; // replace with your model link if different
-let model, webcam, flip = false;
+  <script>
+    const URL = "https://teachablemachine.withgoogle.com/models/qNs3g87f3/"; // <-- Your model link
+    let model, webcam, flip = false;
 
-// Load model
-async function init() {
-    model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+    async function init() {
+      model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+      webcam = new tmImage.Webcam(400, 300, true); // width, height, flip
+      await webcam.setup({ facingMode: "user" });
+      await webcam.play();
+      document.getElementById("webcam").srcObject = webcam.webcam;
+      window.requestAnimationFrame(loop);
+    }
 
-    webcam = new tmImage.Webcam(320, 240, true); // width, height, flip
-    await webcam.setup(); // request camera permission
-    await webcam.play();
-    document.getElementById("webcam").srcObject = webcam.webcam.stream;
+    async function loop() {
+      webcam.update();
+      const prediction = await model.predict(webcam.canvas);
+      showPrediction(prediction);
+      window.requestAnimationFrame(loop);
+    }
 
-    requestAnimationFrame(loop);
-}
-init();
+    function showPrediction(predictions) {
+      let top = predictions[0];
+      predictions.forEach(p => {
+        if(p.probability > top.probability) top = p;
+      });
+      document.getElementById("prediction").innerText = `Prediction: ${top.className}`;
+      speakMarathi(top.className);
+    }
 
-// Flip camera
-document.getElementById("flipBtn").addEventListener("click", async () => {
-    flip = !flip;
-    await webcam.stop();
-    webcam = new tmImage.Webcam(320, 240, flip);
-    await webcam.setup();
-    await webcam.play();
-    document.getElementById("webcam").srcObject = webcam.webcam.stream;
-});
+    let lastSpoken = "";
+    function speakMarathi(text) {
+      if(text === lastSpoken) return; // avoid repeating same prediction constantly
+      lastSpoken = text;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'mr-IN';
+      speechSynthesis.speak(utter);
+    }
 
-// Prediction loop
-async function loop() {
-    webcam.update();
-    const prediction = await model.predict(webcam.canvas);
-    const top = prediction.sort((a,b)=>b.probability-a.probability)[0];
-    document.getElementById("label").innerText = "Prediction: " + top.className;
+    document.getElementById("flipBtn").addEventListener("click", async () => {
+      flip = !flip;
+      await webcam.stop();
+      webcam = new tmImage.Webcam(400, 300, flip);
+      await webcam.setup({ facingMode: flip ? "environment" : "user" });
+      await webcam.play();
+      document.getElementById("webcam").srcObject = webcam.webcam;
+    });
 
-    // Speak in Marathi
-    const utterance = new SpeechSynthesisUtterance(top.className);
-    utterance.lang = "mr-IN";
-    window.speechSynthesis.cancel(); // stop previous speech
-    window.speechSynthesis.speak(utterance);
-
-    requestAnimationFrame(loop);
-}
-</script>
+    init();
+  </script>
 </body>
 </html>
