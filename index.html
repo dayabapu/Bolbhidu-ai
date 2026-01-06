@@ -2,23 +2,24 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Camera Test</title>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+  <title>Pure Camera Test</title>
 </head>
 <body>
 
-<button onclick="startCamera()">Open Camera</button>
-<div id="cam"></div>
+<h2>Camera Test</h2>
+<video id="video" width="300" height="300" autoplay playsinline></video>
 
 <script>
-let webcam;
+  const video = document.getElementById("video");
 
-async function startCamera() {
-  webcam = new tmImage.Webcam(300, 300, true);
-  await webcam.setup({ facingMode: "user" });
-  await webcam.play();
-  document.getElementById("cam").appendChild(webcam.canvas);
-}
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      alert("Camera error: " + err.message);
+      console.error(err);
+    });
 </script>
 
 </body>
