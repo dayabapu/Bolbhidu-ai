@@ -1,26 +1,112 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pure Camera Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bolbhidu-ai Marathi Speakable Model</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; }
+    #webcam-container { margin: 20px auto; }
+    button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+    #label-container { font-size: 20px; margin-top: 15px; font-weight: bold; }
+  </style>
 </head>
 <body>
+  <h1>Bolbhidu-ai Marathi Speakable Model</h1>
 
-<h2>Camera Test</h2>
-<video id="video" width="300" height="300" autoplay playsinline></video>
+  <!-- Buttons -->
+  <button onclick="enableSpeech()">🔊 Start Speaking</button>
+  <button onclick="flipCamera()">🔄 Flip Camera</button>
 
-<script>
-  const video = document.getElementById("video");
+  <!-- Webcam display -->
+  <div id="webcam-container"></div>
 
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-      video.srcObject = stream;
-    })
-    .catch(err => {
-      alert("Camera error: " + err.message);
-      console.error(err);
-    });
-</script>
+  <!-- Prediction label -->
+  <div id="label-container">Loading...</div>
 
+  <!-- TensorFlow.js and Teachable Machine scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <script>
+    const URL = "https://teachablemachine.withgoogle.com/models/Bolbhidu-ai/";
+
+    let model, webcam, labelContainer;
+    let maxPredictions;
+    let speechEnabled = false;
+    let lastSpoken = "";
+    let flip = true; // camera flip option
+
+    // Enable speech
+    function enableSpeech() {
+      speechEnabled = true;
+      alert("Speech Enabled! Now predictions will be spoken in Marathi.");
+    }
+
+    // Flip camera
+    function flipCamera() {
+      flip = !flip;
+      if (webcam) {
+        webcam.stop();
+        webcam = new tmImage.Webcam(300, 300, flip);
+        webcam.setup().then(() => webcam.play());
+        document.getElementById("webcam-container").innerHTML = "";
+        document.getElementById("webcam-container").appendChild(webcam.canvas);
+      }
+    }
+
+    // Speak in Marathi
+    function speakMarathi(text) {
+      if (!speechEnabled) return;
+      window.speechSynthesis.cancel();
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = "mr-IN";
+      msg.rate = 0.9;
+      window.speechSynthesis.speak(msg);
+    }
+
+    async function init() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+
+      // Load model and metadata
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+
+      // Setup webcam
+      webcam = new tmImage.Webcam(300, 300, flip);
+      await webcam.setup();
+      await webcam.play();
+      window.requestAnimationFrame(loop);
+
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+      labelContainer = document.getElementById("label-container");
+    }
+
+    async function loop() {
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+
+      for (let i = 0; i < prediction.length; i++) {
+        const className = prediction[i].className;
+        const prob = prediction[i].probability;
+
+        labelContainer.innerHTML = `${className} : ${ (prob * 100).toFixed(1) }%`;
+
+        // Speak if probability > 90% and different from last spoken
+        if (speechEnabled && prob > 0.9 && className !== lastSpoken) {
+          speakMarathi(className);
+          lastSpoken = className;
+        }
+      }
+    }
+
+    init();
+  </script>
 </body>
 </html>
