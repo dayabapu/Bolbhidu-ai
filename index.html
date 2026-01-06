@@ -1,101 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>TM Camera Speaking AI</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <title>Camera Test</title>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
-
-  <style>
-    body { font-family: Arial; text-align: center; }
-    button { padding: 10px 15px; margin: 5px; font-size: 16px; }
-  </style>
 </head>
-
 <body>
-  <h2>Teachable Machine – Speaking AI</h2>
 
-  <button onclick="startApp()">Start Camera</button>
-  <button onclick="toggleFlip()">Flip Camera</button>
-
-  <div id="camera"></div>
-  <div id="label-container"></div>
+<button onclick="startCamera()">Open Camera</button>
+<div id="cam"></div>
 
 <script>
-  const URL = "https://teachablemachine.withgoogle.com/models/qNs3g87f3/";
+let webcam;
 
-  let model, webcam, labelContainer, maxPredictions;
-  let flip = true;
-  let lastSpoken = "";
-
-  async function startApp() {
-    try {
-      const modelURL = URL + "model.json";
-      const metadataURL = URL + "metadata.json";
-
-      model = await tmImage.load(modelURL, metadataURL);
-      maxPredictions = model.getTotalClasses();
-
-      webcam = new tmImage.Webcam(300, 300, flip);
-
-      await webcam.setup({ facingMode: "user" }); // 🔥 important
-      await webcam.play();
-
-      document.getElementById("camera").innerHTML = "";
-      document.getElementById("camera").appendChild(webcam.canvas);
-
-      labelContainer = document.getElementById("label-container");
-      labelContainer.innerHTML = "";
-      for (let i = 0; i < maxPredictions; i++) {
-        labelContainer.appendChild(document.createElement("div"));
-      }
-
-      window.requestAnimationFrame(loop);
-
-    } catch (err) {
-      alert("Camera error: Please allow camera permission & reload page");
-      console.error(err);
-    }
-  }
-
-  function toggleFlip() {
-    flip = !flip;
-    if (webcam) {
-      webcam.stop();
-      startApp(); // restart camera with new flip value
-    }
-  }
-
-  async function loop() {
-    webcam.update();
-    await predict();
-    window.requestAnimationFrame(loop);
-  }
-
-  async function predict() {
-    const prediction = await model.predict(webcam.canvas);
-
-    for (let i = 0; i < maxPredictions; i++) {
-      const name = prediction[i].className;
-      const prob = prediction[i].probability;
-
-      labelContainer.childNodes[i].innerHTML =
-        name + " : " + prob.toFixed(2);
-
-      if (prob > 0.9 && lastSpoken !== name) {
-        speak(name);
-        lastSpoken = name;
-      }
-    }
-  }
-
-  function speak(text) {
-    const msg = new SpeechSynthesisUtterance(text);
-    msg.lang = "mr-IN";
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(msg);
-  }
+async function startCamera() {
+  webcam = new tmImage.Webcam(300, 300, true);
+  await webcam.setup({ facingMode: "user" });
+  await webcam.play();
+  document.getElementById("cam").appendChild(webcam.canvas);
+}
 </script>
+
 </body>
 </html>
