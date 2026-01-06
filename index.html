@@ -1,73 +1,101 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Marathi Speaking AI</title>
+  <title>TM Camera Speaking AI</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+
+  <style>
+    body { font-family: Arial; text-align: center; }
+    button { padding: 10px 15px; margin: 5px; font-size: 16px; }
+  </style>
 </head>
 
 <body>
-  <h2>Marathi Speaking AI (Teachable Machine)</h2>
-  <button onclick="init()">Start Camera</button>
+  <h2>Teachable Machine – Speaking AI</h2>
+
+  <button onclick="startApp()">Start Camera</button>
+  <button onclick="toggleFlip()">Flip Camera</button>
+
+  <div id="camera"></div>
   <div id="label-container"></div>
 
-  <script>
-    const URL = "https://teachablemachine.withgoogle.com/models/qNs3g87f3/";
+<script>
+  const URL = "https://teachablemachine.withgoogle.com/models/qNs3g87f3/";
 
-    let model, webcam, labelContainer, maxPredictions;
-    let lastSpoken = "";
+  let model, webcam, labelContainer, maxPredictions;
+  let flip = true;
+  let lastSpoken = "";
 
-    async function init() {
+  async function startApp() {
+    try {
       const modelURL = URL + "model.json";
       const metadataURL = URL + "metadata.json";
 
       model = await tmImage.load(modelURL, metadataURL);
       maxPredictions = model.getTotalClasses();
 
-      webcam = new tmImage.Webcam(300, 300, true); // flip camera ON
-      await webcam.setup();
-      await webcam.play();
-      window.requestAnimationFrame(loop);
+      webcam = new tmImage.Webcam(300, 300, flip);
 
-      document.body.appendChild(webcam.canvas);
+      await webcam.setup({ facingMode: "user" }); // 🔥 important
+      await webcam.play();
+
+      document.getElementById("camera").innerHTML = "";
+      document.getElementById("camera").appendChild(webcam.canvas);
 
       labelContainer = document.getElementById("label-container");
+      labelContainer.innerHTML = "";
       for (let i = 0; i < maxPredictions; i++) {
         labelContainer.appendChild(document.createElement("div"));
       }
-    }
 
-    async function loop() {
-      webcam.update();
-      await predict();
       window.requestAnimationFrame(loop);
+
+    } catch (err) {
+      alert("Camera error: Please allow camera permission & reload page");
+      console.error(err);
     }
+  }
 
-    async function predict() {
-      const prediction = await model.predict(webcam.canvas);
+  function toggleFlip() {
+    flip = !flip;
+    if (webcam) {
+      webcam.stop();
+      startApp(); // restart camera with new flip value
+    }
+  }
 
-      for (let i = 0; i < maxPredictions; i++) {
-        const name = prediction[i].className;
-        const prob = prediction[i].probability;
+  async function loop() {
+    webcam.update();
+    await predict();
+    window.requestAnimationFrame(loop);
+  }
 
-        labelContainer.childNodes[i].innerHTML =
-          name + " : " + prob.toFixed(2);
+  async function predict() {
+    const prediction = await model.predict(webcam.canvas);
 
-        if (prob > 0.9 && lastSpoken !== name) {
-          speak(name);
-          lastSpoken = name;
-        }
+    for (let i = 0; i < maxPredictions; i++) {
+      const name = prediction[i].className;
+      const prob = prediction[i].probability;
+
+      labelContainer.childNodes[i].innerHTML =
+        name + " : " + prob.toFixed(2);
+
+      if (prob > 0.9 && lastSpoken !== name) {
+        speak(name);
+        lastSpoken = name;
       }
     }
+  }
 
-    function speak(text) {
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "mr-IN";
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
-    }
-  </script>
+  function speak(text) {
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.lang = "mr-IN";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(msg);
+  }
+</script>
 </body>
 </html>
